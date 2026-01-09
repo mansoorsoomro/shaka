@@ -1,0 +1,23 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    @media (prefers-color-scheme: light) {
+      .background { fill: #000000; }
+      .text { fill: #FFFFFF; }
+    }
+    @media (prefers-color-scheme: dark) {
+      .background { fill: #FFFFFF; }
+      .text { fill: #000000; }
+    }
+  </style>
+  <rect class="background" width="180" height="180" rx="40" />
+  <text 
+    x="50%" 
+    y="55%" 
+    text-anchor="middle" 
+    dominant-baseline="middle" 
+    class="text" 
+    style="font-family: sans-serif; font-weight: bold; font-size: 100px; letter-spacing: -5px;"
+  >
+    S
+  </text>
+</svg>
