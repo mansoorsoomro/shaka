@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useCart } from "@/hooks/use-cart"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
@@ -11,20 +11,78 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 
+import { useAuth } from "@/hooks/use-auth"
+import { toast } from "sonner"
+import { orderService } from "@/lib/services/order-service"
+
 export default function CheckoutPage() {
   const { items, clearCart } = useCart()
+  const { isAuthenticated, user } = useAuth()
   const [step, setStep] = useState(1)
+  const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
-  const handlePlaceOrder = () => {
-    // In a real app, you'd send the order to an API here
-    clearCart()
-    router.push("/checkout/success")
+  const [formData, setFormData] = useState({
+    firstname: "",
+    lastname: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    zip_code: "",
+    shipping_method: "standard",
+    payment_method: "card"
+  })
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      toast.error("Please login to proceed to checkout")
+      router.push("/login?redirect=/checkout")
+    }
+  }, [isAuthenticated, router])
+
+  const handlePlaceOrder = async () => {
+    if (!isAuthenticated) return
+
+    setIsLoading(true)
+    try {
+      const orderItems = items.map(item => ({
+        product_id: item.id,
+        quantity: item.quantity,
+        price: item.price,
+        size: item.size
+      }))
+
+      const subtotal = items.reduce((acc: number, item: any) => acc + item.price * item.quantity, 0)
+      const shipping = 8.89
+      const total = subtotal + shipping
+
+      const response = await orderService.placeOrder({
+        ...formData,
+        items: orderItems,
+        total: total
+      })
+
+      if (response.status) {
+        toast.success("Order placed successfully!")
+        clearCart()
+        router.push("/checkout/success")
+      } else {
+        toast.error(response.message || "Failed to place order")
+      }
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred while placing order")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const subtotal = items.reduce((acc: number, item: any) => acc + item.price * item.quantity, 0)
   const shipping = 8.89
   const total = subtotal + shipping
+
+  if (!isAuthenticated) return null
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -66,15 +124,15 @@ export default function CheckoutPage() {
                 <div className="border border-brand-green/10 rounded-2xl bg-brand-light p-8 space-y-8">
                   <h2 className="text-xl font-bold uppercase tracking-tight">Shipping Address</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input placeholder="First Name" className="rounded-full bg-white h-12" />
-                    <Input placeholder="Last Name" className="rounded-full bg-white h-12" />
-                    <Input placeholder="Email" className="rounded-full bg-white h-12" />
-                    <Input placeholder="Phone Number" className="rounded-full bg-white h-12" />
-                    <Input placeholder="Street Address" className="rounded-full bg-white h-12 md:col-span-2" />
-                    <Input placeholder="City" className="rounded-full bg-white h-12" />
+                    <Input placeholder="First Name" value={formData.firstname} onChange={(e) => setFormData({ ...formData, firstname: e.target.value })} className="rounded-full bg-white h-12" />
+                    <Input placeholder="Last Name" value={formData.lastname} onChange={(e) => setFormData({ ...formData, lastname: e.target.value })} className="rounded-full bg-white h-12" />
+                    <Input placeholder="Email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="rounded-full bg-white h-12" />
+                    <Input placeholder="Phone Number" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="rounded-full bg-white h-12" />
+                    <Input placeholder="Street Address" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} className="rounded-full bg-white h-12 md:col-span-2" />
+                    <Input placeholder="City" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className="rounded-full bg-white h-12" />
                     <div className="grid grid-cols-2 gap-4">
-                      <Input placeholder="State" className="rounded-full bg-white h-12" />
-                      <Input placeholder="Zip Code" className="rounded-full bg-white h-12" />
+                      <Input placeholder="State" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} className="rounded-full bg-white h-12" />
+                      <Input placeholder="Zip Code" value={formData.zip_code} onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })} className="rounded-full bg-white h-12" />
                     </div>
                   </div>
                   <div className="p-4 bg-brand-green/5 border border-brand-green/20 rounded-xl flex items-start gap-3">
@@ -97,11 +155,18 @@ export default function CheckoutPage() {
                       ].map((method) => (
                         <div
                           key={method.id}
-                          className="flex items-center justify-between p-4 bg-white border border-brand-green/10 rounded-xl"
+                          className={cn(
+                            "flex items-center justify-between p-4 bg-white border rounded-xl cursor-pointer transition-colors",
+                            formData.shipping_method === method.id ? "border-brand-green bg-brand-green/5" : "border-brand-green/10"
+                          )}
+                          onClick={() => setFormData({ ...formData, shipping_method: method.id })}
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-4 h-4 rounded-full border-2 border-brand-green flex items-center justify-center">
-                              <div className="w-2 h-2 rounded-full bg-brand-green" />
+                            <div className={cn(
+                              "w-4 h-4 rounded-full border-2 flex items-center justify-center",
+                              formData.shipping_method === method.id ? "border-brand-green" : "border-zinc-300"
+                            )}>
+                              {formData.shipping_method === method.id && <div className="w-2 h-2 rounded-full bg-brand-green" />}
                             </div>
                             <div>
                               <p className="font-bold text-sm">{method.name}</p>
@@ -162,13 +227,13 @@ export default function CheckoutPage() {
                   <div className="space-y-6">
                     <div className="pb-6 border-b border-brand-green/10">
                       <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Shipping To:</p>
-                      <p className="font-serif italic text-zinc-600">Standard</p>
+                      <p className="font-serif italic text-zinc-600">{formData.address}, {formData.city}, {formData.state}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">
                         Shipping Method:
                       </p>
-                      <p className="font-serif italic text-zinc-600">Standard</p>
+                      <p className="font-serif italic text-zinc-600">{formData.shipping_method === 'standard' ? 'Standard Delivery' : 'Expedited Delivery'}</p>
                     </div>
                   </div>
                   <div className="flex gap-4">
@@ -181,9 +246,10 @@ export default function CheckoutPage() {
                     </Button>
                     <Button
                       onClick={handlePlaceOrder}
+                      disabled={isLoading}
                       className="flex-2 bg-brand-green hover:bg-brand-green/90 text-white rounded-full py-6 font-bold uppercase tracking-widest"
                     >
-                      Place Order
+                      {isLoading ? "Processing..." : "Place Order"}
                     </Button>
                   </div>
                 </div>

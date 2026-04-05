@@ -1,85 +1,49 @@
-"use client" // Changed to client component for modal state
+"use client"
 
-import { useState } from "react" // Added state for Quick View
+import { useState, useEffect } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ProductCard, type Product } from "@/components/product-card"
-import { QuickViewModal } from "@/components/quick-view-modal" // Imported QuickViewModal
-
-const PRODUCTS = [
-  {
-    id: 1,
-    category: "PANT DIAPER",
-    title: "Overnight Protection Diapers",
-    rating: 4,
-    reviews: 342,
-    absorbency: "Heavy",
-    price: 25,
-    image: "/white-diaper-side-view.jpg",
-  },
-  {
-    id: 2,
-    category: "DIAPERS",
-    title: "Travel Pack Diaper",
-    rating: 4,
-    reviews: 342,
-    absorbency: "Light",
-    price: 150,
-    image: "/opened-diaper-texture.jpg",
-  },
-  {
-    id: 3,
-    category: "DIAPERS",
-    title: "Maximum Protection Diapers",
-    rating: 4,
-    reviews: 342,
-    absorbency: "Maximum",
-    price: 252,
-    image: "/blue-diaper-packaging.jpg",
-  },
-  // Replicate for the grid
-  {
-    id: 4,
-    category: "PANT DIAPER",
-    title: "Overnight Protection Diapers",
-    rating: 4,
-    reviews: 342,
-    absorbency: "Heavy",
-    price: 25,
-    image: "/white-diaper-texture.jpg",
-  },
-  {
-    id: 5,
-    category: "DIAPERS",
-    title: "Overnight Protection Diapers",
-    rating: 4,
-    reviews: 342,
-    absorbency: "Heavy",
-    price: 369,
-    image: "/diaper-pack-front.jpg",
-  },
-  {
-    id: 6,
-    category: "DIAPERS",
-    title: "Maximum Protection Diapers",
-    rating: 4,
-    reviews: 342,
-    absorbency: "Maximum",
-    price: 252,
-    image: "/placeholder.svg?height=300&width=300",
-  },
-]
+import { ProductCard } from "@/components/product-card"
+import { QuickViewModal } from "@/components/quick-view-modal"
+import { productService } from "@/lib/services/product-service"
+import { Product as ApiProduct } from "@/lib/services/types"
+import { Loader2 } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export default function ShopPage() {
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [products, setProducts] = useState<ApiProduct[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [selectedProduct, setSelectedProduct] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [activeCategory, setActiveCategory] = useState<string | null>(null)
 
-  const handleQuickView = (product: Product) => {
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setIsLoading(true)
+      try {
+        const response = await productService.getProducts()
+        if (response.status) {
+          setProducts(response.data)
+        }
+      } catch (error) {
+        console.error("Failed to fetch products:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchProducts()
+  }, [])
+
+  const handleQuickView = (product: any) => {
     setSelectedProduct(product)
     setIsModalOpen(true)
   }
+
+  const filteredProducts = activeCategory
+    ? products.filter(p => p.category?.name.toLowerCase() === activeCategory.toLowerCase())
+    : products
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -92,13 +56,25 @@ export default function ShopPage() {
 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
           <div className="flex gap-2">
-            <Button variant="default" className="bg-brand-green rounded-full px-6">
+            <Button
+              variant={activeCategory === null ? "default" : "secondary"}
+              className={cn("rounded-full px-6", activeCategory === null && "bg-brand-green")}
+              onClick={() => setActiveCategory(null)}
+            >
               All Products
             </Button>
-            <Button variant="secondary" className="bg-zinc-600 text-white rounded-full px-6 hover:bg-zinc-700">
+            <Button
+              variant={activeCategory === "Pants" ? "default" : "secondary"}
+              className={cn("rounded-full px-6", activeCategory === "Pants" ? "bg-brand-green text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200")}
+              onClick={() => setActiveCategory("Pants")}
+            >
               Pants
             </Button>
-            <Button variant="secondary" className="bg-zinc-600 text-white rounded-full px-6 hover:bg-zinc-700">
+            <Button
+              variant={activeCategory === "Diapers" ? "default" : "secondary"}
+              className={cn("rounded-full px-6", activeCategory === "Diapers" ? "bg-brand-green text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200")}
+              onClick={() => setActiveCategory("Diapers")}
+            >
               Diapers
             </Button>
           </div>
@@ -119,17 +95,32 @@ export default function ShopPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {Array.from({ length: 2 })
-            .flatMap(() => PRODUCTS)
-            .map((product, idx) => (
+        {isLoading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-brand-green" />
+          </div>
+        ) : filteredProducts.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredProducts.map((product) => (
               <ProductCard
-                key={`${product.id}-${idx}`}
-                product={product}
-                onQuickView={handleQuickView} // Passed handleQuickView prop
+                key={product.id}
+                product={{
+                  ...product,
+                  title: product.name,
+                  category: product.category?.name || "Uncategorized",
+                  rating: 4, // API might not provide these, using placeholders for UI consistency
+                  reviews: 0,
+                  absorbency: product.absorbency || "Medium"
+                }}
+                onQuickView={handleQuickView}
               />
             ))}
-        </div>
+          </div>
+        ) : (
+          <div className="text-center py-20 border-2 border-dashed border-brand-green/10 rounded-2xl">
+            <p className="text-zinc-500 font-bold uppercase tracking-widest">No products found in this category.</p>
+          </div>
+        )}
       </main>
 
       <QuickViewModal product={selectedProduct} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />

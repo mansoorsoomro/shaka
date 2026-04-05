@@ -2,25 +2,44 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ShoppingCart, User, ChevronDown } from "lucide-react"
+import { ShoppingCart, User, ChevronDown, ListOrdered, LogOut, UserCircle } from "lucide-react"
 import { useCart } from "@/hooks/use-cart"
+import { useAuth } from "@/hooks/use-auth"
 import { CartDrawer } from "./cart-drawer"
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
+import { useRouter } from "next/navigation"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export function Navbar() {
   const pathname = usePathname()
+  const router = useRouter()
   const { items, toggleCart } = useCart()
+  const { isAuthenticated, logout, user } = useAuth()
   const itemCount = items.reduce((acc, item) => acc + item.quantity, 0)
   const [isScrolled, setIsScrolled] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50)
     }
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
+
+  const handleLogout = () => {
+    logout()
+    router.push("/")
+  }
 
   return (
     <>
@@ -103,14 +122,28 @@ export function Navbar() {
             </nav>
           </div>
           <div className="flex items-center h-full">
-            <button
-              className={cn(
-                "px-6 h-full border-l transition-colors hover:bg-black/5",
-                isScrolled ? "text-zinc-600 border-zinc-200" : "text-white border-white/10"
-              )}
-            >
-              <User className="h-5 w-5" />
-            </button>
+            {mounted && isAuthenticated ? (
+              <button
+                onClick={() => router.push("/profile")}
+                className={cn(
+                  "px-6 h-full border-l transition-colors hover:bg-black/5 flex items-center gap-2 outline-none",
+                  isScrolled ? "text-zinc-600 border-zinc-200" : "text-white border-white/10"
+                )}
+              >
+                <User className="h-5 w-5" />
+              </button>
+            ) : (
+              <button
+                onClick={() => router.push("/login")}
+                className={cn(
+                  "px-6 h-full border-l transition-colors hover:bg-black/5 flex items-center gap-2",
+                  isScrolled ? "text-zinc-600 border-zinc-200" : "text-white border-white/10"
+                )}
+              >
+                <User className="h-5 w-5" />
+                <span className="text-xs font-bold hidden lg:block">Login</span>
+              </button>
+            )}
             <button
               onClick={toggleCart}
               className={cn(
