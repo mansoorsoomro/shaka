@@ -1,5 +1,5 @@
 import { api } from '../api-client';
-import { ApiResponse, CartItem } from './types';
+import { ApiResponse, CartApiItem, CartResponseData } from './types';
 
 function buildCartFormData(data: Record<string, string | number>): FormData {
     const formData = new FormData();
@@ -8,8 +8,8 @@ function buildCartFormData(data: Record<string, string | number>): FormData {
 }
 
 export const cartService = {
-    async getCartItems(cartToken: string): Promise<ApiResponse<CartItem[]>> {
-        return api.get<ApiResponse<CartItem[]>>('/api/cart', { params: { cart_token: cartToken } });
+    async getCartItems(cartToken: string): Promise<ApiResponse<CartResponseData>> {
+        return api.get<ApiResponse<CartResponseData>>('/api/cart', { params: { cart_token: cartToken } });
     },
 
     async getCartQuantity(cartToken: string): Promise<ApiResponse<{ quantity: number }>> {
@@ -20,16 +20,16 @@ export const cartService = {
         cart_token: string;
         variation_id: number;
         quantity: number;
-    }): Promise<ApiResponse<CartItem[]>> {
-        return api.post<ApiResponse<CartItem[]>>('/api/cart', buildCartFormData(payload));
+    }): Promise<ApiResponse<CartResponseData>> {
+        return api.post<ApiResponse<CartResponseData>>('/api/cart', buildCartFormData(payload));
     },
 
     async mergeGuestCart(payload: {
         guest_cart_token: string;
         variation_id: number;
         quantity: number;
-    }): Promise<ApiResponse<CartItem[]>> {
-        return api.post<ApiResponse<CartItem[]>>('/api/cart/merge', buildCartFormData(payload));
+    }): Promise<ApiResponse<CartResponseData>> {
+        return api.post<ApiResponse<CartResponseData>>('/api/cart/merge', buildCartFormData(payload));
     },
 
     async removeCartItem(cartToken: string, variationId: number): Promise<ApiResponse<null>> {

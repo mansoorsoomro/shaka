@@ -48,7 +48,7 @@ export default function CheckoutPage() {
     setIsLoading(true)
     try {
       const orderItems = items.map(item => ({
-        product_id: item.id,
+        product_id: item.product_id || 0,
         quantity: item.quantity,
         price: item.price,
         size: item.size
@@ -262,7 +262,7 @@ export default function CheckoutPage() {
                 <h3 className="font-bold uppercase tracking-wider text-sm">Order Summary</h3>
                 <div className="space-y-4">
                   {items.map((item) => (
-                    <div key={item.id} className="flex justify-between items-center text-sm">
+                    <div key={item.variation_id} className="flex justify-between items-center text-sm">
                       <div>
                         <p className="font-bold leading-none">{item.title}</p>
                         <p className="text-[10px] text-zinc-400 mt-1">Size: {item.size || "M"}</p>

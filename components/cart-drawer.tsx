@@ -47,7 +47,7 @@ export function CartDrawer() {
             </div>
           ) : (
             items.map((item) => (
-              <div key={item.id} className="flex gap-4">
+              <div key={item.variation_id} className="flex gap-4">
                 <div className="h-20 w-20 relative bg-white border border-brand-green/10 rounded-lg overflow-hidden shrink-0">
                   <Image src={item.image || "/placeholder.svg"} alt={item.title} fill className="object-contain p-2" />
                 </div>
@@ -62,7 +62,7 @@ export function CartDrawer() {
                     <p className="font-bold text-sm">${item.price}</p>
                   </div>
                   <div className="flex justify-end mt-2">
-                    <button onClick={() => removeItem(item.id)} className="p-1 text-red-500 hover:bg-red-50 rounded">
+                    <button onClick={() => removeItem(item.variation_id)} className="p-1 text-red-500 hover:bg-red-50 rounded">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>

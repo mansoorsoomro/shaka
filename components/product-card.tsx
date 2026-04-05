@@ -6,8 +6,20 @@ import { Star, Eye } from "lucide-react" // Added Eye icon for Quick View
 import { Button } from "@/components/ui/button"
 import { useCart } from "@/hooks/use-cart"
 
+export interface ProductVariation {
+  id: number
+  sku?: string
+  price: number
+  stock?: number
+  size?: {
+    code?: string
+    name?: string
+  }
+}
+
 export interface Product {
   id: number
+  slug?: string
   category: string
   title: string
   rating: number
@@ -15,19 +27,29 @@ export interface Product {
   absorbency: string
   price: number
   image: string
+  featured_image?: {
+    image_url?: string
+  }
+  variations?: ProductVariation[]
 }
 
 export function ProductCard({ product, onQuickView }: { product: Product; onQuickView?: (product: Product) => void }) {
   const { addItem } = useCart()
 
   const handleAddToCart = () => {
+    const selectedVariation = product.variations?.[0]
+    if (!selectedVariation) return
+
     addItem({
-      id: product.id,
+      variation_id: selectedVariation.id,
+      product_id: product.id,
       title: product.title,
-      price: product.price,
+      price: selectedVariation.price,
       quantity: 1,
-      image: product.image,
-      size: "M", // default size
+      image: product?.featured_image?.image_url || product.image,
+      size: selectedVariation.size?.code ?? "M",
+      sku: selectedVariation.sku,
+      product_slug: product.slug,
     })
   }
 
@@ -35,7 +57,7 @@ export function ProductCard({ product, onQuickView }: { product: Product; onQuic
     <div className="group border-2 border-brand-green/20 rounded-xl overflow-hidden bg-white p-6 space-y-4 hover:shadow-xl transition-shadow">
       <div className="aspect-square relative bg-brand-light rounded-lg overflow-hidden p-8">
         <Image
-          src={product.image || "/placeholder.svg"}
+          src={product?.featured_image?.image_url || "/placeholder.svg"}
           alt={product.title}
           fill
           className="object-contain p-4 group-hover:scale-105 transition-transform"
@@ -65,12 +87,12 @@ export function ProductCard({ product, onQuickView }: { product: Product; onQuic
         </div>
       </div>
       <div className="space-y-1">
-        <p className="text-sm font-bold text-zinc-900">{product.absorbency}</p>
-        <p className="text-2xl font-bold text-brand-green">${product.price}</p>
+        <p className="text-sm font-bold text-zinc-900">{product.variations?.[0]?.size?.name ?? product.absorbency}</p>
+        <p className="text-2xl font-bold text-brand-green">${product.variations?.[0]?.price ?? product.price}</p>
       </div>
       <div className="flex gap-2 pt-2">
         <Button variant="outline" asChild className="flex-1 rounded-full text-[10px] font-bold h-9 bg-transparent">
-          <Link href={`/shop/${product.id}`}>View Details</Link>
+          <Link href={`/shop/${product.slug || product.id}`}>View Details</Link>
         </Button>
         <Button
           onClick={handleAddToCart}

@@ -9,6 +9,8 @@ import { CartDrawer } from "./cart-drawer"
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
+import { productService } from "@/lib/services/product-service"
+import { Category } from "@/lib/services/types"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,15 +19,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { log } from "console"
 
 export function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
-  const { items, toggleCart } = useCart()
+  const { items, toggleCart, initCart } = useCart()
   const { isAuthenticated, logout, user } = useAuth()
   const itemCount = items.reduce((acc, item) => acc + item.quantity, 0)
   const [isScrolled, setIsScrolled] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loadingCategories, setLoadingCategories] = useState(true)
 
   useEffect(() => {
     setMounted(true)
@@ -35,6 +40,26 @@ export function Navbar() {
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
+
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await productService.getCategories()
+        if (response.success) {
+          setCategories(response.data)
+          console.log("Fetched categories:", response.data)
+        }
+      } catch (error) {
+        console.error("Failed to fetch categories:", error)
+      } finally {
+        setLoadingCategories(false)
+      }
+    }
+
+    initCart()
+    fetchCategories()
+  }, [initCart])
 
   const handleLogout = () => {
     logout()
@@ -88,16 +113,24 @@ export function Navbar() {
                 >
                   Shop <ChevronDown className="h-4 w-4" />
                 </Link>
-                <div className="absolute left-0 top-full hidden w-40 bg-white border shadow-lg group-hover:block text-zinc-800">
-                  <Link href="/shop" className="block px-4 py-2 hover:bg-muted font-normal">
-                    Pants
-                  </Link>
-                  <Link href="/shop" className="block px-4 py-2 hover:bg-muted font-normal">
-                    Diapers
-                  </Link>
+                <div className="absolute left-0 top-full hidden w-48 bg-white border shadow-lg group-hover:block text-zinc-800 z-50">
                   <Link href="/shop" className="block px-4 py-2 hover:bg-muted font-normal">
                     View All
                   </Link>
+                  {!loadingCategories && categories.length > 0 && (
+                    <>
+                      <div className="border-t border-zinc-200" />
+                      {categories.map((category) => (
+                        <Link
+                          key={category.id}
+                          href={`/shop?category=${category.slug}`}
+                          className="block px-4 py-2 hover:bg-muted font-normal"
+                        >
+                          {category.name}
+                        </Link>
+                      ))}
+                    </>
+                  )}
                 </div>
               </div>
               {[

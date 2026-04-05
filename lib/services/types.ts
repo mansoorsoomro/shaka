@@ -133,6 +133,35 @@ export interface CartItemPayload {
     quantity: number;
 }
 
+export interface CartApiItem {
+    variation_id: number;
+    product_id: number;
+    product_name: string;
+    product_slug: string;
+    sku: string;
+    size: string;
+    size_code: string;
+    absorbency_level: string;
+    price: number;
+    quantity_per_pack: number;
+    quantity: number;
+    subtotal: number;
+    stock: number;
+    image: string;
+    added_at: string;
+}
+
+export interface CartSummary {
+    total_items: number;
+    total_units: number;
+    subtotal: number;
+}
+
+export interface CartResponseData {
+    cart: CartApiItem[];
+    summary: CartSummary;
+}
+
 export interface CartItem {
     id?: number;
     variation_id: number;
