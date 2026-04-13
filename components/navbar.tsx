@@ -46,7 +46,7 @@ export function Navbar() {
     const fetchCategories = async () => {
       try {
         const response = await productService.getCategories()
-        if (response.success) {
+        if (response.success && response.data) {
           setCategories(response.data)
           console.log("Fetched categories:", response.data)
         }
@@ -178,7 +178,10 @@ export function Navbar() {
               </button>
             )}
             <button
-              onClick={toggleCart}
+              onClick={() => {
+                initCart()
+                toggleCart()
+              }}
               className={cn(
                 "px-6 h-full border-l transition-colors hover:bg-black/5 relative",
                 isScrolled ? "text-zinc-600 border-zinc-200" : "text-white border-white/10"
