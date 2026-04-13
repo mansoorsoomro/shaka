@@ -8,8 +8,13 @@ function buildCartFormData(data: Record<string, string | number>): FormData {
 }
 
 export const cartService = {
-    async getCartItems(cartToken: string): Promise<ApiResponse<CartResponseData>> {
-        return api.get<ApiResponse<CartResponseData>>('/api/cart', { params: { cart_token: cartToken } });
+    // async getCartItems(cartToken: string): Promise<ApiResponse<CartResponseData>> {
+    //     return api.get<ApiResponse<CartResponseData>>('/api/cart', { params: { cart_token: cartToken } });
+    // },
+
+    
+    async getCartItems(cartToken: string): Promise<{ status: boolean; data: CartApiItem }> {
+        return api.get<{ status: boolean; data: CartApiItem }>(`/api/cart` ,{ params: { cart_token: cartToken }} );
     },
 
     async getCartQuantity(cartToken: string): Promise<ApiResponse<{ quantity: number }>> {

@@ -75,6 +75,7 @@ async function request<T>(method: string, endpoint: string, body?: unknown, opti
         method,
         ...(options.credentials ? { credentials: options.credentials } : {}),
         headers: {
+            "Cache-Control": "no-cache",
             Accept: 'application/json',
             ...(skipApiKey ? {} : { 'x-api-key': API_CONFIG.API_KEY }),
             ...(!isFormData && body !== undefined ? { 'Content-Type': 'application/json' } : {}),

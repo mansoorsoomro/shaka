@@ -79,7 +79,7 @@ export function QuickViewModal({ product, isOpen, onClose }: QuickViewModalProps
         {/* Product Image Section */}
         <div className="w-full md:w-1/2 bg-brand-light p-8 flex items-center justify-center">
           <div className="relative aspect-square w-full max-w-[400px]">
-            <Image src={product.image || "/placeholder.svg"} alt={product.title} fill className="object-contain p-4" />
+            <Image src={product?.featured_image?.image_url ?? product.image ?? "/placeholder.svg"} alt={product.title} fill className="object-contain p-4" />
           </div>
         </div>
 
