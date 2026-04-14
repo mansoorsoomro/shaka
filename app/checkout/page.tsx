@@ -14,12 +14,16 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
 import { orderService } from "@/lib/services/order-service"
+import { metaService } from "@/lib/services/meta-service"
+import type { ShippingMethod } from "@/lib/services/types"
 
 export default function CheckoutPage() {
   const { items, clearCart } = useCart()
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated } = useAuth()
   const [step, setStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
+  const [isShippingMethodsLoading, setIsShippingMethodsLoading] = useState(false)
+  const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([])
   const router = useRouter()
 
   const [formData, setFormData] = useState({
@@ -31,7 +35,7 @@ export default function CheckoutPage() {
     city: "",
     state: "",
     zip_code: "",
-    shipping_method: "standard",
+    shipping_method: "",
     payment_method: "card"
   })
 
@@ -42,8 +46,59 @@ export default function CheckoutPage() {
     }
   }, [isAuthenticated, router])
 
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    let isMounted = true
+    const fetchShippingMethods = async () => {
+      setIsShippingMethodsLoading(true)
+      try {
+        const response = await metaService.getShippingMethods()
+        const methods = Array.isArray(response.data) ? response.data : []
+
+        if ((response.success || response.status) && methods.length > 0) {
+          if (!isMounted) return
+          setShippingMethods(methods)
+          setFormData((prev) => {
+            const hasSelectedMethod = methods.some((method) => String(method.id) === prev.shipping_method)
+            if (hasSelectedMethod) return prev
+            return { ...prev, shipping_method: String(methods[0].id) }
+          })
+          return
+        }
+
+        if (!isMounted) return
+        setShippingMethods([])
+        setFormData((prev) => ({ ...prev, shipping_method: "" }))
+        toast.error(response.message || "No shipping methods available")
+      } catch (error: any) {
+        if (!isMounted) return
+        setShippingMethods([])
+        setFormData((prev) => ({ ...prev, shipping_method: "" }))
+        toast.error(error.message || "Failed to load shipping methods")
+      } finally {
+        if (isMounted) {
+          setIsShippingMethodsLoading(false)
+        }
+      }
+    }
+
+    fetchShippingMethods()
+
+    return () => {
+      isMounted = false
+    }
+  }, [isAuthenticated])
+
+  const selectedShippingMethod = shippingMethods.find((method) => String(method.id) === formData.shipping_method)
+  const shipping = selectedShippingMethod?.price ?? 0
+
   const handlePlaceOrder = async () => {
     if (!isAuthenticated) return
+    if (!formData.shipping_method) {
+      toast.error("Please select a shipping method")
+      return
+    }
 
     setIsLoading(true)
     try {
@@ -55,11 +110,11 @@ export default function CheckoutPage() {
       }))
 
       const subtotal = items.reduce((acc: number, item: any) => acc + item.price * item.quantity, 0)
-      const shipping = 8.89
       const total = subtotal + shipping
 
       const response = await orderService.placeOrder({
         ...formData,
+        shipping_method: Number(formData.shipping_method),
         items: orderItems,
         total: total
       })
@@ -79,7 +134,6 @@ export default function CheckoutPage() {
   }
 
   const subtotal = items.reduce((acc: number, item: any) => acc + item.price * item.quantity, 0)
-  const shipping = 8.89
   const total = subtotal + shipping
 
   if (!isAuthenticated) return null
@@ -149,37 +203,51 @@ export default function CheckoutPage() {
                   <div className="space-y-4 pt-4">
                     <h3 className="font-bold uppercase tracking-wider text-sm">Shipping Method</h3>
                     <div className="space-y-2">
-                      {[
-                        { id: "standard", name: "Standard Delivery", price: 8.89, time: "3-5 business days" },
-                        { id: "expedited", name: "Expedited Delivery", price: 15.99, time: "1-2 business days" },
-                      ].map((method) => (
+                      {isShippingMethodsLoading && (
+                        <div className="p-4 bg-white border border-brand-green/10 rounded-xl">
+                          <p className="text-sm text-zinc-500">Loading shipping methods...</p>
+                        </div>
+                      )}
+
+                      {!isShippingMethodsLoading && shippingMethods.length === 0 && (
+                        <div className="p-4 bg-white border border-brand-green/10 rounded-xl">
+                          <p className="text-sm text-zinc-500">No shipping methods available right now.</p>
+                        </div>
+                      )}
+
+                      {!isShippingMethodsLoading && shippingMethods.map((method) => (
                         <div
                           key={method.id}
                           className={cn(
                             "flex items-center justify-between p-4 bg-white border rounded-xl cursor-pointer transition-colors",
-                            formData.shipping_method === method.id ? "border-brand-green bg-brand-green/5" : "border-brand-green/10"
+                            formData.shipping_method === String(method.id) ? "border-brand-green bg-brand-green/5" : "border-brand-green/10"
                           )}
-                          onClick={() => setFormData({ ...formData, shipping_method: method.id })}
+                          onClick={() => setFormData({ ...formData, shipping_method: String(method.id) })}
                         >
                           <div className="flex items-center gap-3">
                             <div className={cn(
                               "w-4 h-4 rounded-full border-2 flex items-center justify-center",
-                              formData.shipping_method === method.id ? "border-brand-green" : "border-zinc-300"
+                              formData.shipping_method === String(method.id) ? "border-brand-green" : "border-zinc-300"
                             )}>
-                              {formData.shipping_method === method.id && <div className="w-2 h-2 rounded-full bg-brand-green" />}
+                              {formData.shipping_method === String(method.id) && <div className="w-2 h-2 rounded-full bg-brand-green" />}
                             </div>
                             <div>
                               <p className="font-bold text-sm">{method.name}</p>
-                              <p className="text-[10px] text-zinc-400">{method.time}</p>
+                              <p className="text-[10px] text-zinc-400">
+                                {typeof method.business_days === "number"
+                                  ? `${method.business_days} business day${method.business_days === 1 ? "" : "s"}`
+                                  : "Delivery timeline unavailable"}
+                              </p>
                             </div>
                           </div>
-                          <span className="font-bold text-sm">${method.price}</span>
+                          <span className="font-bold text-sm">${method.price.toFixed(2)}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                   <Button
                     onClick={() => setStep(2)}
+                    disabled={isShippingMethodsLoading || shippingMethods.length === 0 || !formData.shipping_method}
                     className="w-full bg-brand-green hover:bg-brand-green/90 text-white rounded-full py-6 font-bold"
                   >
                     Continue to Payment
@@ -233,7 +301,7 @@ export default function CheckoutPage() {
                       <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">
                         Shipping Method:
                       </p>
-                      <p className="font-serif italic text-zinc-600">{formData.shipping_method === 'standard' ? 'Standard Delivery' : 'Expedited Delivery'}</p>
+                      <p className="font-serif italic text-zinc-600">{selectedShippingMethod?.name || "Not selected"}</p>
                     </div>
                   </div>
                   <div className="flex gap-4">

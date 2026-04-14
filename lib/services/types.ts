@@ -90,7 +90,8 @@ export interface Role {
 export interface ShippingMethod {
     id: number;
     name: string;
-    price?: number;
+    price: number;
+    business_days?: number;
     code?: string;
 }
 
@@ -198,7 +199,7 @@ export interface OrderData {
     city: string;
     state: string;
     zip_code: string;
-    shipping_method: string;
+    shipping_method: string | number;
     payment_method: string;
     items: OrderItem[];
     total: number;
