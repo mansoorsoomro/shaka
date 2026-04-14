@@ -26,8 +26,6 @@ export const cartService = {
 
     async mergeGuestCart(payload: {
         guest_cart_token: string;
-        variation_id: number;
-        quantity: number;
     }): Promise<ApiResponse<CartResponseData>> {
         return api.post<ApiResponse<CartResponseData>>('/api/cart/merge', buildCartFormData(payload));
     },

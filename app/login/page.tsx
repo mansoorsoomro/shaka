@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input"
 import { Lock, Mail, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { authService } from "@/lib/services/auth-service"
+import { cartService } from "@/lib/services/cart-service"
 import { useAuth } from "@/hooks/use-auth"
+import { useCart } from "@/hooks/use-cart"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useGoogleLogin } from '@react-oauth/google'
@@ -20,6 +22,7 @@ function LoginContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const { setAuth } = useAuth()
+    const { items, cartToken, initCart } = useCart()
 
     const redirectPath = searchParams.get("redirect") || "/"
 
@@ -30,6 +33,14 @@ function LoginContent() {
                 const response = await authService.handleGoogleCallback({ code: codeResponse.code })
                 if ((response.status || response.success) && response.data) {
                     setAuth(response.data.user, response.data.token)
+                    if (items.length > 0 && cartToken) {
+                        try {
+                            await cartService.mergeGuestCart({ guest_cart_token: cartToken })
+                            await initCart()
+                        } catch (mergeError) {
+                            console.error("Failed to merge guest cart after Google login:", mergeError)
+                        }
+                    }
                     toast.success("Logged in with Google!")
                     router.push("/")
                 } else {
@@ -56,6 +67,14 @@ function LoginContent() {
 
             if (isSuccess && response.data) {
                 setAuth(response.data.user, response.data.token)
+                if (items.length > 0 && cartToken) {
+                    try {
+                        await cartService.mergeGuestCart({ guest_cart_token: cartToken })
+                        await initCart()
+                    } catch (mergeError) {
+                        console.error("Failed to merge guest cart after login:", mergeError)
+                    }
+                }
                 toast.success(response.message || "Logged in successfully")
                 router.push("/")
             } else {
