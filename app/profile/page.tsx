@@ -10,6 +10,7 @@ import { toast } from "sonner"
 import { orderService } from "@/lib/services/order-service"
 import { useMounted } from "@/hooks/use-mounted"
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog"
+import { format } from "date-fns";
 
 type GenericRecord = Record<string, unknown>
 
@@ -413,7 +414,7 @@ export default function ProfilePage() {
                                     </div>
                                     <div>
                                         <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-widest">Date of Birth</p>
-                                        <p className="font-bold text-zinc-700">{user.dob}</p>
+                                        <p className="font-bold text-zinc-700">{user?.dob ? format(new Date(user.dob), "MMM dd, yyyy") : "-"}</p>
                                     </div>
                                 </div>
                             </div>
