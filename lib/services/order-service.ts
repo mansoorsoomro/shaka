@@ -39,15 +39,23 @@ export const orderService = {
         return api.get<ApiResponse<Order[]>>('/api/orders');
     },
 
-    async getOrderByNumber(orderNumber: string): Promise<ApiResponse<Order>> {
-        return api.get<ApiResponse<Order>>(`/api/orders/${orderNumber}`);
+    async getOrderByNumber(orderNumber: string | number): Promise<ApiResponse<Order>> {
+        return api.get<ApiResponse<Order>>(`/api/orders/${String(orderNumber)}`);
+    },
+
+    async getOrderDetails(orderIdentifier: string | number): Promise<ApiResponse<Order>> {
+        return this.getOrderByNumber(orderIdentifier);
     },
 
     async getOrderBySession(sessionId: string): Promise<ApiResponse<Order>> {
         return api.get<ApiResponse<Order>>(`/api/orders/session/${sessionId}`);
     },
 
-    async cancelMyOrder(orderNumber: string): Promise<ApiResponse<Order>> {
-        return api.patch<ApiResponse<Order>>(`/api/orders/${orderNumber}/cancel`);
+    async cancelMyOrder(orderNumber: string | number): Promise<ApiResponse<Order>> {
+        return api.patch<ApiResponse<Order>>(`/api/orders/${String(orderNumber)}/cancel`);
+    },
+
+    async cancelOrder(orderIdentifier: string | number): Promise<ApiResponse<Order>> {
+        return this.cancelMyOrder(orderIdentifier);
     },
 };

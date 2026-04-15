@@ -10,7 +10,7 @@ import { ChevronLeft, Check, Lock } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
-
+import { useMounted } from "@/hooks/use-mounted"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
 import { orderService } from "@/lib/services/order-service"
@@ -19,7 +19,8 @@ import type { ShippingMethod } from "@/lib/services/types"
 
 export default function CheckoutPage() {
   const { items, clearCart } = useCart()
-  const { isAuthenticated } = useAuth()
+  const { user, isAuthenticated } = useAuth()
+  const mounted = useMounted()
   const [step, setStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
   const [isShippingMethodsLoading, setIsShippingMethodsLoading] = useState(false)
@@ -40,11 +41,24 @@ export default function CheckoutPage() {
   })
 
   useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        firstname: prev.firstname || user.firstname || "",
+        lastname: prev.lastname || user.lastname || "",
+        email: prev.email || user.email || "",
+        phone: prev.phone || user.phone || ""
+      }))
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (!mounted) return
     if (!isAuthenticated) {
       toast.error("Please login to proceed to checkout")
       router.push("/login?redirect=/checkout")
     }
-  }, [isAuthenticated, router])
+  }, [mounted, isAuthenticated, router])
 
   useEffect(() => {
     if (!isAuthenticated) return
@@ -119,10 +133,16 @@ export default function CheckoutPage() {
         total: total
       })
 
-      if (response.status) {
+      if (response.status || response.success) {
         toast.success("Order placed successfully!")
-        clearCart()
-        router.push("/checkout/success")
+        await clearCart()
+
+        if (response.data?.checkout_url) {
+          window.location.href = response.data.checkout_url
+        } else {
+          const orderNum = response.data?.order_number || ""
+          router.push(`/order/success${orderNum ? `?order=${orderNum}` : ""}`)
+        }
       } else {
         toast.error(response.message || "Failed to place order")
       }
@@ -136,7 +156,7 @@ export default function CheckoutPage() {
   const subtotal = items.reduce((acc: number, item: any) => acc + item.price * item.quantity, 0)
   const total = subtotal + shipping
 
-  if (!isAuthenticated) return null
+  if (!mounted || !isAuthenticated) return null
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -151,7 +171,7 @@ export default function CheckoutPage() {
               <ChevronLeft className="h-4 w-4" /> Back to Shopping
             </Link>
             <div className="flex items-center gap-4">
-              {[1, 2, 3].map((s) => (
+              {[1, 3].map((s, index) => (
                 <div key={s} className="flex items-center">
                   <div
                     className={cn(
@@ -163,13 +183,13 @@ export default function CheckoutPage() {
                           : "bg-zinc-100 text-zinc-400",
                     )}
                   >
-                    {step > s ? <Check className="h-4 w-4" /> : s}
+                    {step > s ? <Check className="h-4 w-4" /> : index + 1}
                   </div>
-                  {s < 3 && <div className={cn("w-8 h-0.5 mx-2", step > s ? "bg-brand-green/20" : "bg-zinc-100")} />}
+                  {index < 1 && <div className={cn("w-8 h-0.5 mx-2", step > s ? "bg-brand-green/20" : "bg-zinc-100")} />}
                 </div>
               ))}
             </div>
-          </div>
+          </div >
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Main Form Content */}
@@ -246,11 +266,11 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                   <Button
-                    onClick={() => setStep(2)}
+                    onClick={() => setStep(3)}
                     disabled={isShippingMethodsLoading || shippingMethods.length === 0 || !formData.shipping_method}
                     className="w-full bg-brand-green hover:bg-brand-green/90 text-white rounded-full py-6 font-bold"
                   >
-                    Continue to Payment
+                    Continue to Review
                   </Button>
                 </div>
               )}
@@ -307,7 +327,7 @@ export default function CheckoutPage() {
                   <div className="flex gap-4">
                     <Button
                       variant="outline"
-                      onClick={() => setStep(2)}
+                      onClick={() => setStep(1)}
                       className="flex-1 rounded-full py-6 border-brand-green/20"
                     >
                       Back

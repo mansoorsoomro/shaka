@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import { useState, Suspense, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,7 @@ import { useCart } from "@/hooks/use-cart"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useGoogleLogin } from '@react-oauth/google'
+import { useMounted } from "@/hooks/use-mounted"
 
 function LoginContent() {
     const [email, setEmail] = useState("")
@@ -214,6 +215,19 @@ function LoginContent() {
 }
 
 export default function LoginPage() {
+    const { isAuthenticated } = useAuth()
+    const router = useRouter()
+    const mounted = useMounted()
+
+    useEffect(() => {
+        if (!mounted) return
+        if (isAuthenticated) {
+            router.push("/")
+        }
+    }, [mounted, isAuthenticated, router])
+
+    if (!mounted || isAuthenticated) return null
+
     return (
         <div className="flex min-h-screen flex-col bg-white">
             <main className="flex-1 flex items-center justify-center px-4 py-20">
