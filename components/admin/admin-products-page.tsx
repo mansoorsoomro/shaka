@@ -126,7 +126,29 @@ export default function AdminProductsPage() {
   const [formProduct, setFormProduct] = useState<ApiProduct | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(50);
+  // const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
+  const [isLoadMoreLoading, setIsLoadMoreLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+
+  
+
+  const loadMore = async  () => {
+    setIsLoadMoreLoading(true);
+    const productsResponse = await productService.getProducts({paginated: true, pagination: page , page: currentPage})
+    if (productsResponse.success) {
+      if(currentPage > 1){
+        const { items, lastPage: lp } = extractPaginatedProducts(productsResponse);
+        setApiProducts(prev => [...prev, ...(items|| [])]);
+      }
+      // setProducts(productsResponse.data.data); // Assuming the products are nested under data.data based on previous API responses
+      setHasMore(productsResponse.data.next_page_url || false); // Assuming the API provides a has_more field for pagination
+      setCurrentPage(productsResponse.data.current_page + 1); // Start from page 2 for the next fetch
+    }
+    setIsLoadMoreLoading(false);
+  }
 
   const loadProducts = useCallback(async (p: number) => {
     setLoading(true);
@@ -138,6 +160,8 @@ export default function AdminProductsPage() {
         return;
       }
       const { items, lastPage: lp } = extractPaginatedProducts(res);
+      setHasMore(res.data.next_page_url || false); 
+      setCurrentPage(res.data.current_page + 1); // Start from page 2 for the next fetch
       setApiProducts(items);
       setLastPage(lp);
     } catch (e: unknown) {
@@ -300,7 +324,7 @@ export default function AdminProductsPage() {
               New Product
             </Button>
           </div>
-          {lastPage > 1 && (
+          {/* {lastPage > 1 && (
             <div className="mt-4 flex items-center justify-between gap-2 text-sm">
               <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
                 Previous
@@ -318,7 +342,7 @@ export default function AdminProductsPage() {
                 Next
               </Button>
             </div>
-          )}
+          )} */}
         </CardContent>
       </Card>
 
@@ -336,6 +360,17 @@ export default function AdminProductsPage() {
           onDelete={handleConfirmDelete}
         />
       )}
+      {isLoadMoreLoading ? (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      ) : hasMore ? (
+        <div className="flex justify-center py-4">
+          <Button onClick={() => loadMore()} variant="outline" className="bg-primary hover:bg-primary/90 text-white rounded-full text-sm font-bold h-9">
+            Load More
+          </Button>
+        </div>
+      ) : null}
 
       <AdminProductFormModal
         isOpen={isFormModalOpen}

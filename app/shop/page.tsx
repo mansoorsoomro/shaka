@@ -23,20 +23,41 @@ function ShopPageContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedProduct, setSelectedProduct] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [page, setPage] = useState(1)
+  const [isLoadMoreLoading, setIsLoadMoreLoading] = useState(false)
 
   // Fetch products and categories on mount
+
+  const loadMore = async  () => {
+    setIsLoadMoreLoading(true);
+    const productsResponse = await productService.getProducts({page: page})
+    if (productsResponse.success) {
+      if(page > 1){
+        setProducts(prev => [...prev, ...(productsResponse.data.data || [])])
+      }
+      // setProducts(productsResponse.data.data); // Assuming the products are nested under data.data based on previous API responses
+      setHasMore(productsResponse.data.next_page_url || false); // Assuming the API provides a has_more field for pagination
+      setPage(productsResponse.data.current_page + 1); // Start from page 2 for the next fetch
+    }
+    setIsLoadMoreLoading(false);
+  }
+
+
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true)
       try {
         // Fetch both products and categories in parallel
         const [productsResponse, categoriesResponse] = await Promise.all([
-          productService.getProducts(),
+          productService.getProducts({page: page}), // Start with page 
           productService.getCategories(),
         ])
 
         if (productsResponse.success) {
-          setProducts(productsResponse.data.data) // Assuming the products are nested under data.data based on previous API responses
+          setProducts(productsResponse.data.data); // Assuming the products are nested under data.data based on previous API responses
+          setHasMore(productsResponse.data.next_page_url || false); // Assuming the API provides a has_more field for pagination
+          setPage(productsResponse.data.current_page + 1); // Start from page 2 for the next fetch
         }
         if (categoriesResponse.success) {
           setCategories(categoriesResponse.data)
@@ -124,22 +145,37 @@ function ShopPageContent() {
             <Loader2 className="h-8 w-8 animate-spin text-brand-green" />
           </div>
         ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={{
-                  ...product,
-                  title: product.name,
-                  category: product.category?.name || "Uncategorized",
-                  rating: 4, // API might not provide these, using placeholders for UI consistency
-                  reviews: 0,
-                  absorbency: product.absorbency || "Medium"
-                }}
-                onQuickView={handleQuickView}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={{
+                    ...product,
+                    title: product.name,
+                    category: product.category?.name || "Uncategorized",
+                    rating: 4, // API might not provide these, using placeholders for UI consistency
+                    reviews: 0,
+                    absorbency: product.absorbency || "Medium"
+                  }}
+                  onQuickView={handleQuickView}
+                />
+              ))}
+            </div>
+            {isLoadMoreLoading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="h-6 w-6 animate-spin text-brand-green" />
+              </div>
+            ) : hasMore ? (
+              <div className="flex gap-2 justify-center  pt-2">
+                <div className="justify-center flex items-center gap-2">
+                  <Button onClick={() => loadMore()} variant="outline" className="flex-1 bg-brand-green hover:bg-brand-green/90 text-white rounded-full text-[10px] font-bold h-9">
+                    Load More
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </>
         ) : (
           <div className="text-center py-20 border-2 border-dashed border-brand-green/10 rounded-2xl">
             <p className="text-zinc-500 font-bold uppercase tracking-widest">No products found in this category.</p>
