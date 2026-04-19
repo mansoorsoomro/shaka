@@ -14,6 +14,8 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useGoogleLogin } from '@react-oauth/google'
 import { useMounted } from "@/hooks/use-mounted"
+import type { User } from "@/lib/services/types"
+import { getRoleAwareRedirectPath } from "@/lib/auth/role"
 
 function LoginContent() {
     const [email, setEmail] = useState("")
@@ -25,7 +27,14 @@ function LoginContent() {
     const { setAuth } = useAuth()
     const { items, cartToken, initCart } = useCart()
 
-    const redirectPath = searchParams.get("redirect") || "/"
+    const requestedRedirect = searchParams.get("redirect")
+    const redirectPath = requestedRedirect || "/"
+    const getRedirectTarget = (nextUser: User) =>
+        getRoleAwareRedirectPath({
+            user: nextUser,
+            requestedPath: requestedRedirect,
+            defaultUserPath: "/",
+        })
 
     const googleLogin = useGoogleLogin({
         onSuccess: async (codeResponse) => {
@@ -43,7 +52,7 @@ function LoginContent() {
                         }
                     }
                     toast.success("Logged in with Google!")
-                    router.push("/")
+                    router.push(getRedirectTarget(response.data.user))
                 } else {
                     toast.error(response.message || "Google login failed")
                 }
@@ -77,7 +86,7 @@ function LoginContent() {
                     }
                 }
                 toast.success(response.message || "Logged in successfully")
-                router.push("/")
+                router.push(getRedirectTarget(response.data.user))
             } else {
                 setErrors({ general: response.message || "Login failed" })
                 toast.error(response.message || "Login failed")
@@ -215,16 +224,21 @@ function LoginContent() {
 }
 
 export default function LoginPage() {
-    const { isAuthenticated } = useAuth()
+    const { isAuthenticated, user } = useAuth()
     const router = useRouter()
     const mounted = useMounted()
 
     useEffect(() => {
         if (!mounted) return
-        if (isAuthenticated) {
-            router.push("/")
+        if (isAuthenticated && user) {
+            router.push(
+                getRoleAwareRedirectPath({
+                    user,
+                    defaultUserPath: "/",
+                }),
+            )
         }
-    }, [mounted, isAuthenticated, router])
+    }, [mounted, isAuthenticated, router, user])
 
     if (!mounted || isAuthenticated) return null
 

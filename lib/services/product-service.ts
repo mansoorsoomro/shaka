@@ -8,7 +8,8 @@ export const productService = {
         return api.get<ApiResponse<Product[]>>('/api/products', {
             params: {
                 paginated: true,
-                pagination: 1,
+                // pagination: 1,
+                pagination: 50,
                 ...params,
             },
         });

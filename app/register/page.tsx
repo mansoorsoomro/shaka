@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useGoogleLogin } from '@react-oauth/google'
+import { getRoleAwareRedirectPath } from "@/lib/auth/role"
 
 function RegisterContent() {
     const [formData, setFormData] = useState({
@@ -41,7 +42,12 @@ function RegisterContent() {
                 if ((response.status || response.success) && response.data) {
                     setAuth(response.data.user, response.data.token)
                     toast.success("Signed up with Google!")
-                    router.push("/")
+                    router.push(
+                        getRoleAwareRedirectPath({
+                            user: response.data.user,
+                            defaultUserPath: "/",
+                        }),
+                    )
                 } else {
                     toast.error(response.message || "Google signup failed")
                 }

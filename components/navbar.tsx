@@ -1,16 +1,16 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { ShoppingCart, User, ChevronDown, ListOrdered, LogOut, UserCircle } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { ShoppingCart, User, ChevronDown } from "lucide-react"
 import { useCart } from "@/hooks/use-cart"
 import { useAuth } from "@/hooks/use-auth"
 import { CartDrawer } from "./cart-drawer"
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
-import { useRouter } from "next/navigation"
 import { productService } from "@/lib/services/product-service"
 import { Category } from "@/lib/services/types"
+import { isAdminUser } from "@/lib/auth/role"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,18 +19,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { log } from "console"
 
 export function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const { items, toggleCart, initCart } = useCart()
-  const { isAuthenticated, logout, user } = useAuth()
+  const { isAuthenticated, user, logout } = useAuth()
   const itemCount = items.reduce((acc, item) => acc + item.quantity, 0)
   const [isScrolled, setIsScrolled] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [loadingCategories, setLoadingCategories] = useState(true)
+  const isAdmin = isAdminUser(user)
+  const accountPath = isAdmin ? "/admin/dashboard" : "/profile"
+  const accountLabel = isAdmin ? "Admin Dashboard" : "Profile"
 
   useEffect(() => {
     setMounted(true)
@@ -60,11 +62,6 @@ export function Navbar() {
     initCart()
     fetchCategories()
   }, [initCart])
-
-  const handleLogout = () => {
-    logout()
-    router.push("/")
-  }
 
   return (
     <>
@@ -156,15 +153,36 @@ export function Navbar() {
           </div>
           <div className="flex items-center h-full">
             {mounted && isAuthenticated ? (
-              <button
-                onClick={() => router.push("/profile")}
-                className={cn(
-                  "px-6 h-full border-l transition-colors hover:bg-black/5 flex items-center gap-2 outline-none",
-                  isScrolled ? "text-zinc-600 border-zinc-200" : "text-white border-white/10"
-                )}
-              >
-                <User className="h-5 w-5" />
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={cn(
+                      "px-6 h-full border-l transition-colors hover:bg-black/5 flex items-center gap-2 outline-none",
+                      isScrolled ? "text-zinc-600 border-zinc-200" : "text-white border-white/10"
+                    )}
+                  >
+                    <User className="h-5 w-5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel className="truncate">
+                    {user ? `${user.firstname} ${user.lastname}` : "Account"}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => router.push(accountPath)} className="cursor-pointer">
+                    {accountLabel}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      logout()
+                      router.push("/")
+                    }}
+                    className="cursor-pointer text-red-600 focus:text-red-600"
+                  >
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <button
                 onClick={() => router.push("/login")}

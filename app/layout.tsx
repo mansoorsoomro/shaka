@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 }
 
 import { GoogleOAuthProvider } from '@react-oauth/google'
+import { Toaster } from 'sonner'
 
 export default function RootLayout({
   children,
@@ -32,6 +33,7 @@ export default function RootLayout({
         <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""}>
           {children}
         </GoogleOAuthProvider>
+        <Toaster richColors position="top-center" />
         <Analytics />
       </body>
     </html>

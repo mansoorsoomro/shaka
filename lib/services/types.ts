@@ -31,6 +31,12 @@ export interface User {
     dob: string;
     gender: string;
     image?: string | null;
+    role?: string | Role | null;
+    roles?: Array<string | Role> | null;
+    user_type?: string | null;
+    account_type?: string | null;
+    type?: string | null;
+    is_admin?: boolean | number | string | null;
     email_verified_at?: string;
     email_verifed_at?: string;
     created_at: string;
@@ -103,30 +109,51 @@ export interface Category {
     description?: string;
 }
 
+export interface ProductImage {
+    id: number;
+    image_path: string;
+    image_url: string;
+    is_featured: number;
+    alt_text: string;
+    created_at: string;
+}
+
 export interface ProductVariation {
     id: number;
+    product_id?: number;
     size_id?: number;
+    size?: Size;
+    sku?: string;
     quantity_per_pack?: number;
     stock?: number;
     price?: number;
     absorbency_level?: string;
-    is_active?: boolean;
+    is_active?: boolean | number;
+    price_per_piece?: number;
+    total_pieces?: number;
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface Product {
     id: number;
-    category_id: number;
+    category_id?: number;
     name: string;
     slug: string;
     description: string;
-    price: number;
-    image: string;
-    stock: number;
+    sku?: string;
+    price?: number;
+    images?: ProductImage[] | string[];
+    featured_image?: ProductImage | string | null;
+    stock?: number;
     absorbency?: string;
     rating?: number;
     reviews_count?: number;
+    is_active?: number;
     category?: Category;
     variations?: ProductVariation[];
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface CartItemPayload {

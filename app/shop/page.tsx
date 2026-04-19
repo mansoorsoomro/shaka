@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
@@ -13,7 +13,7 @@ import { Product as ApiProduct, Category } from "@/lib/services/types"
 import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-export default function ShopPage() {
+function ShopPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const categoryParam = searchParams.get("category")
@@ -151,5 +151,13 @@ export default function ShopPage() {
 
       <Footer />
     </div>
+  )
+}
+
+export default function ShopPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ShopPageContent />
+    </Suspense>
   )
 }

@@ -7,8 +7,12 @@ export const adminService = {
     },
 
     async updateOrderStatus(orderNumber: string, status: string): Promise<ApiResponse<Order>> {
-        return api.patch<ApiResponse<Order>>(`/api/admin/orders/${orderNumber}/status`, undefined, {
-            params: { status },
-        });
+        const formData = new FormData();
+        formData.append('status', status);
+        return api.patch<ApiResponse<Order>>(
+            `/api/admin/orders/${encodeURIComponent(orderNumber)}/status`,
+            formData,
+            { params: { status } },
+        );
     },
 };
