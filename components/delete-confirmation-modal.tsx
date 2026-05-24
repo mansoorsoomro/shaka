@@ -9,7 +9,7 @@ interface DeleteConfirmationModalProps {
   onClose: () => void;
   onConfirm: () => void;
   itemName: string;
-  itemType: 'user' | 'order' | 'product' | 'customer';
+  itemType: 'user' | 'order' | 'product' | 'customer' | 'faq';
 }
 
 export default function DeleteConfirmationModal({

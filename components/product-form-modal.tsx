@@ -20,6 +20,20 @@ interface ProductFormModalProps {
   sizes?: ProductSize[];
 }
 
+// Form-only variation shape: uses `size_id` (string) for the size <Select>
+// instead of the nested `size` object on the API ProductVariation type.
+type FormVariation = {
+  id?: number;
+  size_id?: string;
+  sku?: string;
+  price?: number;
+  quantity_per_pack?: number;
+  stock?: number;
+  absorbency_level?: string;
+  is_active?: number;
+  price_per_piece?: number;
+};
+
 export default function ProductFormModal({
   isOpen,
   onClose,
@@ -36,7 +50,7 @@ export default function ProductFormModal({
     sku: '',
     category_id: '',
     is_active: 1,
-    variations: [] as Partial<ProductVariation>[],
+    variations: [] as FormVariation[],
   });
 
   useEffect(() => {
@@ -90,7 +104,7 @@ export default function ProductFormModal({
     }));
   };
 
-  const handleSelectChange = (name: string, value: string) => {
+  const handleSelectChange = (name: string, value: string | number) => {
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -446,195 +460,6 @@ export default function ProductFormModal({
               </div>
 
               <div className="flex gap-3 pt-4 border-t">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={onClose}
-                  className="flex-1 bg-transparent"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  className="flex-1 bg-primary hover:bg-primary/90"
-                >
-                  {mode === 'edit' ? 'Update Product' : 'Create Product'}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
-      });
-    }
-  }, [product, mode, isOpen]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newProduct: Product = {
-      id: product?.id || Date.now().toString(),
-      name: formData.name,
-      sku: formData.sku,
-      category: formData.category,
-      price: formData.price.startsWith('$') ? formData.price : `$${formData.price}`,
-      stock: parseInt(formData.stock) || 0,
-      status: formData.status,
-      rating: parseFloat(formData.rating) || 0,
-    };
-    onSubmit(newProduct);
-    setFormData({
-      name: '',
-      sku: '',
-      category: '',
-      price: '',
-      stock: '',
-      status: 'active',
-      rating: '',
-    });
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50">
-      <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-        <Card className="relative w-full max-w-md my-8 transform text-left shadow-xl transition-all sm:my-8">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <div>
-              <CardTitle>{mode === 'edit' ? 'Edit Product' : 'Create New Product'}</CardTitle>
-              <CardDescription>{mode === 'edit' ? 'Update product details' : 'Add a new product to your catalog'}</CardDescription>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X size={20} className="text-gray-600" />
-            </button>
-          </CardHeader>
-
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Product Name
-                </label>
-                <Input
-                  type="text"
-                  name="name"
-                  placeholder="Enter product name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                  className="border-gray-300"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  SKU
-                </label>
-                <Input
-                  type="text"
-                  name="sku"
-                  placeholder="Enter SKU"
-                  value={formData.sku}
-                  onChange={handleChange}
-                  required
-                  className="border-gray-300"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Category
-                </label>
-                <Input
-                  type="text"
-                  name="category"
-                  placeholder="Enter category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  required
-                  className="border-gray-300"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Price
-                </label>
-                <Input
-                  type="text"
-                  name="price"
-                  placeholder="Enter price (e.g., 99.99)"
-                  value={formData.price}
-                  onChange={handleChange}
-                  required
-                  className="border-gray-300"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Stock Quantity
-                </label>
-                <Input
-                  type="number"
-                  name="stock"
-                  placeholder="Enter stock quantity"
-                  value={formData.stock}
-                  onChange={handleChange}
-                  required
-                  className="border-gray-300"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Rating
-                </label>
-                <Input
-                  type="number"
-                  name="rating"
-                  placeholder="Enter rating (0-5)"
-                  min="0"
-                  max="5"
-                  step="0.1"
-                  value={formData.rating}
-                  onChange={handleChange}
-                  className="border-gray-300"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Status
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="discontinued">Discontinued</option>
-                </select>
-              </div>
-
-              <div className="flex gap-3 pt-4">
                 <Button
                   type="button"
                   variant="outline"

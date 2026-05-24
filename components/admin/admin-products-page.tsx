@@ -12,8 +12,10 @@ import ProductGrid from "@/components/products/product-grid";
 import type { Product as UiProduct } from "@/types";
 import type { Product as ApiProduct } from "@/lib/services/types";
 import { productService } from "@/lib/services/product-service";
-import { extractPaginatedProducts, isApiSuccess } from "@/lib/admin/extract";
+import { isApiSuccess } from "@/lib/admin/extract";
 import { toast } from "sonner";
+
+const PAGE_SIZE = 20;
 
 function apiProductToGrid(p: ApiProduct): UiProduct {
   const variations = p.variations ?? [];
@@ -23,8 +25,13 @@ function apiProductToGrid(p: ApiProduct): UiProduct {
   const minPrice = variations.length
     ? Math.min(...variations.map((v) => Number(v.price) || 0))
     : Number(p.price) || 0;
-  const allOff =
-    variations.length > 0 && variations.every((v) => v.is_active === false);
+  // Status comes from the product-level is_active flag (same source the
+  // edit/view modals use). Treat 0 / "0" / false as inactive; default active
+  // when the flag is absent.
+  const isActive =
+    p.is_active === undefined || p.is_active === null
+      ? true
+      : Number(p.is_active) === 1;
   return {
     id: String(p.id),
     name: p.name,
@@ -34,7 +41,7 @@ function apiProductToGrid(p: ApiProduct): UiProduct {
     // images: p.images ? p.images.map((img) => img.url) : [],
     price: `$${minPrice.toFixed(2)}`,
     stock: totalStock,
-    status: allOff ? "inactive" : "active",
+    status: isActive ? "active" : "inactive",
     rating: p.rating ?? 0,
   };
 }
@@ -115,7 +122,6 @@ function apiProductToDetailModal(apiProduct: ApiProduct): import("@/types").Prod
 }
 
 export default function AdminProductsPage() {
-  const [searchTerm, setSearchTerm] = useState("");
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -125,65 +131,69 @@ export default function AdminProductsPage() {
   const [apiProducts, setApiProducts] = useState<ApiProduct[]>([]);
   const [formProduct, setFormProduct] = useState<ApiProduct | null>(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(50);
-  // const [page, setPage] = useState(1);
-  const [lastPage, setLastPage] = useState(1);
   const [isLoadMoreLoading, setIsLoadMoreLoading] = useState(false);
   const [hasMore, setHasMore] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [nextPage, setNextPage] = useState(2);
 
+  // Server-side filters (admin products API: search / min_price / max_price)
+  const [searchInput, setSearchInput] = useState("");
+  const [minPriceInput, setMinPriceInput] = useState("");
+  const [maxPriceInput, setMaxPriceInput] = useState("");
+  const [filters, setFilters] = useState({ search: "", minPrice: "", maxPrice: "" });
 
-  
-
-  const loadMore = async  () => {
-    setIsLoadMoreLoading(true);
-    const productsResponse = await productService.getProducts({paginated: true, pagination: page , page: currentPage})
-    if (productsResponse.success) {
-      if(currentPage > 1){
-        const { items, lastPage: lp } = extractPaginatedProducts(productsResponse);
-        setApiProducts(prev => [...prev, ...(items|| [])]);
-      }
-      // setProducts(productsResponse.data.data); // Assuming the products are nested under data.data based on previous API responses
-      setHasMore(productsResponse.data.next_page_url || false); // Assuming the API provides a has_more field for pagination
-      setCurrentPage(productsResponse.data.current_page + 1); // Start from page 2 for the next fetch
-    }
-    setIsLoadMoreLoading(false);
-  }
-
-  const loadProducts = useCallback(async (p: number) => {
-    setLoading(true);
-    try {
-      const res = await productService.getProducts({ paginated: true, pagination: p });
-      if (!isApiSuccess(res)) {
-        toast.error((res as { message?: string }).message ?? "Failed to load products");
-        setApiProducts([]);
-        return;
-      }
-      const { items, lastPage: lp } = extractPaginatedProducts(res);
-      setHasMore(res.data.next_page_url || false); 
-      setCurrentPage(res.data.current_page + 1); // Start from page 2 for the next fetch
-      setApiProducts(items);
-      setLastPage(lp);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Failed to load products";
-      toast.error(msg);
-      setApiProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Debounce filter inputs before refetching.
   useEffect(() => {
-    loadProducts(page);
-  }, [loadProducts, page]);
+    const t = setTimeout(
+      () => setFilters({ search: searchInput, minPrice: minPriceInput, maxPrice: maxPriceInput }),
+      450,
+    );
+    return () => clearTimeout(t);
+  }, [searchInput, minPriceInput, maxPriceInput]);
 
-  const gridProducts: UiProduct[] = apiProducts.map(apiProductToGrid);
-
-  const filteredProducts = gridProducts.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase()),
+  const fetchProducts = useCallback(
+    async (pageNum: number, append: boolean) => {
+      if (append) setIsLoadMoreLoading(true);
+      else setLoading(true);
+      try {
+        const res = await productService.getAdminProducts({
+          page: pageNum,
+          pagination: PAGE_SIZE,
+          search: filters.search,
+          minPrice: filters.minPrice,
+          maxPrice: filters.maxPrice,
+        });
+        if (!isApiSuccess(res)) {
+          toast.error((res as { message?: string }).message ?? "Failed to load products");
+          if (!append) setApiProducts([]);
+          return;
+        }
+        const payload = res.data as unknown as {
+          data?: ApiProduct[];
+          next_page_url?: string | null;
+          current_page?: number;
+        };
+        const items = payload.data ?? [];
+        setApiProducts((prev) => (append ? [...prev, ...items] : items));
+        setHasMore(Boolean(payload.next_page_url));
+        setNextPage((payload.current_page ?? pageNum) + 1);
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : "Failed to load products");
+        if (!append) setApiProducts([]);
+      } finally {
+        if (append) setIsLoadMoreLoading(false);
+        else setLoading(false);
+      }
+    },
+    [filters],
   );
+
+  // Refetch from page 1 whenever filters change.
+  useEffect(() => {
+    void fetchProducts(1, false);
+  }, [fetchProducts]);
+
+  // Search is now server-side; render the products as returned by the API.
+  const gridProducts: UiProduct[] = apiProducts.map(apiProductToGrid);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -224,7 +234,7 @@ export default function AdminProductsPage() {
         toast.success("Product deleted");
         setIsDeleteModalOpen(false);
         setSelectedGridProduct(null);
-        await loadProducts(page);
+        await fetchProducts(1, false);
       } else {
         toast.error((res as { message?: string }).message ?? "Delete failed");
       }
@@ -275,7 +285,7 @@ export default function AdminProductsPage() {
         const res = await productService.editProduct(formProduct.id, formData);
         if (isApiSuccess(res)) {
           toast.success("Product updated");
-          await loadProducts(page);
+          await fetchProducts(1, false);
         } else {
           toast.error((res as { message?: string }).message ?? "Update failed");
           throw new Error("update failed");
@@ -284,7 +294,7 @@ export default function AdminProductsPage() {
         const res = await productService.addProduct(formData);
         if (isApiSuccess(res)) {
           toast.success("Product created");
-          await loadProducts(page);
+          await fetchProducts(1, false);
         } else {
           toast.error((res as { message?: string }).message ?? "Create failed");
           throw new Error("create failed");
@@ -310,10 +320,30 @@ export default function AdminProductsPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 text-gray-400" size={18} />
               <Input
-                placeholder="Search by product name or slug..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by product name..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="pl-10 text-sm md:text-base"
+              />
+            </div>
+            {/* Price range (server-side: min_price / max_price) */}
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={0}
+                placeholder="Min price"
+                value={minPriceInput}
+                onChange={(e) => setMinPriceInput(e.target.value)}
+                className="w-28 text-sm md:text-base"
+              />
+              <span className="text-gray-400">–</span>
+              <Input
+                type="number"
+                min={0}
+                placeholder="Max price"
+                value={maxPriceInput}
+                onChange={(e) => setMaxPriceInput(e.target.value)}
+                className="w-28 text-sm md:text-base"
               />
             </div>
             <Button
@@ -324,25 +354,6 @@ export default function AdminProductsPage() {
               New Product
             </Button>
           </div>
-          {/* {lastPage > 1 && (
-            <div className="mt-4 flex items-center justify-between gap-2 text-sm">
-              <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </Button>
-              <span className="text-muted-foreground">
-                Page {page} of {lastPage}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page >= lastPage}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          )} */}
         </CardContent>
       </Card>
 
@@ -352,7 +363,7 @@ export default function AdminProductsPage() {
         </div>
       ) : (
         <ProductGrid
-          products={filteredProducts}
+          products={gridProducts}
           getStatusColor={getStatusColor}
           getStockStatus={getStockStatus}
           onView={handleViewProduct}
@@ -366,7 +377,7 @@ export default function AdminProductsPage() {
         </div>
       ) : hasMore ? (
         <div className="flex justify-center py-4">
-          <Button onClick={() => loadMore()} variant="outline" className="bg-primary hover:bg-primary/90 text-white rounded-full text-sm font-bold h-9">
+          <Button onClick={() => fetchProducts(nextPage, true)} variant="outline" className="bg-primary hover:bg-primary/90 text-white rounded-full text-sm font-bold h-9">
             Load More
           </Button>
         </div>

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { X, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2, Star } from "lucide-react";
 import type { Product as ApiProduct } from "@/lib/services/types";
 import type { Category, Size } from "@/lib/services/types";
 import { metaService } from "@/lib/services/meta-service";
@@ -46,8 +46,9 @@ export default function AdminProductFormModal({
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [isActive, setIsActive] = useState(true);
-  const [featuredImageIndex, setFeaturedImageIndex] = useState("0");
+  const [featuredImageIndex, setFeaturedImageIndex] = useState(0);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [deleteImageIds, setDeleteImageIds] = useState<string[]>([]);
   const [variations, setVariations] = useState<VariationRow[]>([
     { size_id: "", price: "", quantity_per_pack: "", stock: "", absorbency_level: "", is_active: "1" },
@@ -81,8 +82,14 @@ export default function AdminProductFormModal({
       setName(product.name ?? "");
       setDescription(product.description ?? "");
       setCategoryId(String(product.category?.id ?? product.category_id ?? ""));
-      setIsActive(product.is_active === 1 ? true : false);
-      setFeaturedImageIndex("0");
+      // Treat 1 / "1" / true as active; default to active when the flag is absent.
+      // Number(true) === 1, so booleans are covered too.
+      setIsActive(
+        product.is_active === undefined || product.is_active === null
+          ? true
+          : Number(product.is_active) === 1,
+      );
+      setFeaturedImageIndex(0);
       setImageFiles([]);
       setDeleteImageIds([]);
       const vars = (product.variations ?? []).map((v) => ({
@@ -92,7 +99,7 @@ export default function AdminProductFormModal({
         quantity_per_pack: String(v.quantity_per_pack ?? ""),
         stock: String(v.stock ?? ""),
         absorbency_level: String(v.absorbency_level ?? ""),
-        is_active: v.is_active === false || v.is_active === 0 ? "0" : "1",
+        is_active: v.is_active === false || Number(v.is_active) === 0 ? "0" : "1",
       }));
       setVariations(
         vars.length > 0
@@ -104,7 +111,7 @@ export default function AdminProductFormModal({
       setDescription("");
       setCategoryId("");
       setIsActive(true);
-      setFeaturedImageIndex("0");
+      setFeaturedImageIndex(0);
       setImageFiles([]);
       setDeleteImageIds([]);
       setVariations([
@@ -112,6 +119,28 @@ export default function AdminProductFormModal({
       ]);
     }
   }, [isOpen, mode, product]);
+
+  // Generate (and clean up) object URLs for previewing newly selected images.
+  useEffect(() => {
+    const urls = imageFiles.map((f) => URL.createObjectURL(f));
+    setPreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [imageFiles]);
+
+  const addImageFiles = (files: File[]) => {
+    if (files.length === 0) return;
+    setImageFiles((prev) => [...prev, ...files]);
+  };
+
+  const removeImageFile = (index: number) => {
+    setImageFiles((prev) => prev.filter((_, i) => i !== index));
+    // Keep the featured selection pointing at the right file after removal.
+    setFeaturedImageIndex((prev) => {
+      if (index === prev) return 0;
+      if (index < prev) return prev - 1;
+      return prev;
+    });
+  };
 
   const addVariationRow = () => {
     setVariations((v) => [
@@ -134,11 +163,16 @@ export default function AdminProductFormModal({
     fd.append("description", description.trim());
     fd.append("category_id", categoryId);
     fd.append("is_active", isActive ? "1" : "0");
-    fd.append("featured_image_index", featuredImageIndex.trim() || "0");
 
     imageFiles.forEach((file, i) => {
       fd.append(`images[${i}]`, file);
     });
+
+    // featured_image_index = position of the chosen file within images[].
+    if (imageFiles.length > 0) {
+      const safeIndex = featuredImageIndex < imageFiles.length ? featuredImageIndex : 0;
+      fd.append("featured_image_index", String(safeIndex));
+    }
 
     deleteImageIds.forEach((id) => {
       fd.append("delete_image_ids[]", id);
@@ -228,23 +262,69 @@ export default function AdminProductFormModal({
                     Active
                   </label>
                 </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Featured image index</label>
-                  <Input
-                    value={featuredImageIndex}
-                    onChange={(e) => setFeaturedImageIndex(e.target.value)}
-                    className="border-gray-300"
-                  />
-                </div>
                 <div className="sm:col-span-2">
-                  <label className="mb-1 block text-sm font-medium text-gray-700">New images (optional)</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    {mode === "edit" ? "Add new images (optional)" : "Product images"}
+                  </label>
                   <Input
                     type="file"
                     accept="image/*"
                     multiple
-                    onChange={(e) => setImageFiles(Array.from(e.target.files ?? []))}
+                    onChange={(e) => {
+                      // Capture files synchronously BEFORE clearing the input —
+                      // resetting value empties the FileList that state would read later.
+                      const files = Array.from(e.target.files ?? []);
+                      addImageFiles(files);
+                      e.target.value = ""; // allow re-selecting the same file
+                    }}
                     className="border-gray-300"
                   />
+                  {previews.length > 0 && (
+                    <>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Click an image to set it as the featured image.
+                      </p>
+                      <div className="mt-2 grid grid-cols-3 gap-3 sm:grid-cols-4">
+                        {previews.map((src, i) => {
+                          const isFeatured = i === featuredImageIndex;
+                          return (
+                            <div
+                              key={i}
+                              onClick={() => setFeaturedImageIndex(i)}
+                              className={`group relative aspect-square cursor-pointer overflow-hidden rounded-lg border-2 transition-colors ${
+                                isFeatured
+                                  ? "border-primary ring-2 ring-primary/30"
+                                  : "border-gray-200 hover:border-primary/50"
+                              }`}
+                              title={isFeatured ? "Featured image" : "Click to set as featured"}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={src} alt={`Preview ${i + 1}`} className="h-full w-full object-cover" />
+
+                              {isFeatured && (
+                                <span className="absolute left-1 top-1 flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-white">
+                                  <Star className="h-3 w-3 fill-white" />
+                                  Featured
+                                </span>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeImageFile(i);
+                                }}
+                                className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                                title="Remove image"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
                 </div>
                 {mode === "edit" && product && (
                   <div className="sm:col-span-2">
@@ -269,6 +349,12 @@ export default function AdminProductFormModal({
                               />
                               <div className="flex-1">
                                 <p className="text-xs text-gray-700">{imgObj.alt_text}</p>
+                                {typeof img !== "string" && Number(img.is_featured) === 1 && (
+                                  <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                                    <Star className="h-3 w-3 fill-primary" />
+                                    Current featured
+                                  </span>
+                                )}
                               </div>
                               <Button
                                 type="button"

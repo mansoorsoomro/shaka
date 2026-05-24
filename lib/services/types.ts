@@ -251,3 +251,57 @@ export interface OrderResponse {
         [key: string]: unknown;
     };
 }
+
+export interface FaqImage {
+    id: number;
+    image_path?: string;
+    image_url?: string;
+}
+
+export interface Faq {
+    id: number;
+    title: string;
+    description: string;
+    is_active?: number | boolean;
+    images?: Array<FaqImage | string>;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface FaqInput {
+    title: string;
+    description: string;
+    is_active?: boolean | number;
+    images?: File[];
+}
+
+/** A single KPI value with an optional period-over-period change. */
+export interface DashboardKpi {
+    value: number;
+    change: number | null;
+}
+
+/** One bucket of the order-status breakdown. */
+export interface DashboardOrderStatus {
+    status?: string;
+    count?: number;
+    total?: number;
+}
+
+/**
+ * Admin dashboard payload (GET /api/admin/dashboard). The `revenue_trend`
+ * and `top_products` arrays are read defensively since their item shape is
+ * not documented and they are empty on a fresh store.
+ */
+export interface DashboardData {
+    kpis?: {
+        total_revenue?: DashboardKpi;
+        total_orders?: DashboardKpi;
+        total_customers?: DashboardKpi;
+        avg_order_value?: DashboardKpi;
+    };
+    revenue_trend?: Array<Record<string, unknown>>;
+    order_status?: DashboardOrderStatus[];
+    top_products?: Array<Record<string, unknown>>;
+    [key: string]: unknown;
+}

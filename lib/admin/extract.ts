@@ -35,3 +35,30 @@ export function extractOrdersList(response: unknown): unknown[] {
   }
   return [];
 }
+
+/**
+ * Generic list extractor that handles both `{ data: [] }` and the
+ * Laravel paginator shape `{ data: { data: [] } }`.
+ */
+export function extractList<T = unknown>(response: unknown): T[] {
+  const r = response as Record<string, unknown>;
+  const data = r?.data;
+  if (Array.isArray(data)) return data as T[];
+  if (data && typeof data === "object" && Array.isArray((data as { data?: unknown }).data)) {
+    return (data as { data: T[] }).data;
+  }
+  return [];
+}
+
+/**
+ * Extract the `data` object from an API response (non-list payloads such as
+ * the admin dashboard). Falls back to the raw response when there is no
+ * `data` wrapper.
+ */
+export function extractData<T = Record<string, unknown>>(response: unknown): T {
+  const r = response as Record<string, unknown>;
+  if (r && typeof r === "object" && "data" in r && r.data && typeof r.data === "object") {
+    return r.data as T;
+  }
+  return (r ?? {}) as T;
+}

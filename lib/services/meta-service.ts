@@ -1,9 +1,14 @@
 import { api } from '../api-client';
-import { ApiResponse, Size, Category, Role, ShippingMethod } from './types';
+import { ApiResponse, Size, Category, Role, ShippingMethod, Faq } from './types';
 
 export const metaService = {
     async getSizes(): Promise<ApiResponse<Size[]>> {
         return api.get<ApiResponse<Size[]>>('/api/get-sizes');
+    },
+
+    /** Public FAQ list shown on the storefront resources page. */
+    async getFaqs(): Promise<ApiResponse<Faq[]>> {
+        return api.get<ApiResponse<Faq[]>>('/api/faqs');
     },
 
     async getCategories(): Promise<ApiResponse<Category[]>> {

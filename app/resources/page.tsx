@@ -1,31 +1,44 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Button } from "@/components/ui/button"
+import { Loader2 } from "lucide-react"
+import { metaService } from "@/lib/services/meta-service"
+import { extractList } from "@/lib/admin/extract"
+import type { Faq } from "@/lib/services/types"
+
+// Static seed data — replaced by GET /api/faqs (kept for reference).
+// const faqs = [
+//   { q: "Is my order shipped discreetly?", a: "Yes, absolutely. All orders are shipped in plain, unmarked brown boxes ..." },
+//   { q: "How do I know what size to order?", a: "Each product page includes a detailed size guide ..." },
+//   { q: "What's your return policy?", a: "We offer a 30-day money-back guarantee on all unopened packages ..." },
+//   { q: "How long does shipping take?", a: "Orders placed before 2 PM EST ship the same day ..." },
+//   { q: "Do you offer subscription services?", a: "Yes! Our Subscribe & Save program offers 15% off every order ..." },
+// ]
 
 export default function ResourcesPage() {
-  const faqs = [
-    {
-      q: "Is my order shipped discreetly?",
-      a: "Yes, absolutely. All orders are shipped in plain, unmarked brown boxes with no logos or product information visible from the outside. The return address uses our corporate name with no reference to the product type. Your privacy is our top priority.",
-    },
-    {
-      q: "How do I know what size to order?",
-      a: "Each product page includes a detailed size guide. We recommend measuring at the fullest part of your hips and referring to our size chart. If you're between sizes, we typically recommend sizing up for better comfort. Our customer service team is also available 24/7 to help you find the perfect fit.",
-    },
-    {
-      q: "What's your return policy?",
-      a: "We offer a 30-day money-back guarantee on all unopened packages. If you're not satisfied with your purchase, simply contact us within 30 days of delivery for a full refund. For hygiene reasons, we cannot accept returns of opened packages.",
-    },
-    {
-      q: "How long does shipping take?",
-      a: "Orders placed before 2 PM EST ship the same day. Standard shipping typically takes 3-5 business days. We also offer expedited 2-day and overnight shipping options at checkout.",
-    },
-    {
-      q: "Do you offer subscription services?",
-      a: "Yes! Our Subscribe & Save program offers 15% off every order with automatic deliveries on your schedule. You can modify, skip, or cancel your subscription at any time with no penalties or fees.",
-    },
-  ]
+  const [faqs, setFaqs] = useState<Faq[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+    ;(async () => {
+      try {
+        const res = await metaService.getFaqs()
+        if (active) setFaqs(extractList<Faq>(res))
+      } catch {
+        if (active) setFaqs([])
+      } finally {
+        if (active) setLoading(false)
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [])
 
   return (
     <div className="min-h-screen bg-background">
@@ -47,24 +60,38 @@ export default function ResourcesPage() {
         <section className="py-16 px-4">
           <div className="max-w-4xl mx-auto">
             <h2 className="font-bold text-xl mb-8 border-b pb-4">General Questions</h2>
-            <Accordion type="single" collapsible className="space-y-4">
-              {faqs.map((faq, i) => (
-                <AccordionItem key={i} value={`item-${i}`} className="bg-muted/30 rounded-lg px-6 border-none">
-                  <AccordionTrigger className="font-bold hover:no-underline py-6">{faq.q}</AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground leading-relaxed pb-6">{faq.a}</AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
+            {loading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : faqs.length === 0 ? (
+              <p className="text-muted-foreground">No FAQs available at the moment.</p>
+            ) : (
+              <>
+                <Accordion type="single" collapsible className="space-y-4">
+                  {faqs.map((faq, i) => (
+                    <AccordionItem key={faq.id ?? i} value={`item-${i}`} className="bg-muted/30 rounded-lg px-6 border-none">
+                      <AccordionTrigger className="font-bold hover:no-underline py-6">{faq.title}</AccordionTrigger>
+                      <AccordionContent className="text-muted-foreground leading-relaxed pb-6">
+                        <div dangerouslySetInnerHTML={{ __html: faq.description ?? "" }} />
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
 
-            <h2 className="font-bold text-xl mt-16 mb-8 border-b pb-4">Product Questions</h2>
-            <Accordion type="single" collapsible className="space-y-4">
-              {faqs.slice(0, 3).map((faq, i) => (
-                <AccordionItem key={i} value={`prod-${i}`} className="bg-muted/30 rounded-lg px-6 border-none">
-                  <AccordionTrigger className="font-bold hover:no-underline py-6">{faq.q}</AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground leading-relaxed pb-6">{faq.a}</AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
+                {/* <h2 className="font-bold text-xl mt-16 mb-8 border-b pb-4">Product Questions</h2>
+                <Accordion type="single" collapsible className="space-y-4">
+                  {faqs.slice(0, 3).map((faq, i) => (
+                    <AccordionItem key={faq.id ?? i} value={`prod-${i}`} className="bg-muted/30 rounded-lg px-6 border-none">
+                      <AccordionTrigger className="font-bold hover:no-underline py-6">{faq.title}</AccordionTrigger>
+                      <AccordionContent className="text-muted-foreground leading-relaxed pb-6">
+                        <div dangerouslySetInnerHTML={{ __html: faq.description ?? "" }} />
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion> */}
+              </>
+            )}
           </div>
         </section>
 

@@ -10,8 +10,10 @@ interface CustomersTableProps {
     searchTerm: string;
     setSearchTerm: (term: string) => void;
     onView: (customer: Customer) => void;
-    onEdit: (customer: Customer) => void;
-    onDelete: (customer: Customer) => void;
+    // Edit/Delete are optional — customers have no mutation API, so the
+    // buttons are only rendered when handlers are provided.
+    onEdit?: (customer: Customer) => void;
+    onDelete?: (customer: Customer) => void;
 }
 
 export default function CustomersTable({ customers, searchTerm, setSearchTerm, onView, onEdit, onDelete }: CustomersTableProps) {
@@ -39,7 +41,6 @@ export default function CustomersTable({ customers, searchTerm, setSearchTerm, o
                             <tr className="border-b">
                                 <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Name</th>
                                 <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Email</th>
-                                <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Company</th>
                                 <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Status</th>
                                 <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Join Date</th>
                                 <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Actions</th>
@@ -50,7 +51,6 @@ export default function CustomersTable({ customers, searchTerm, setSearchTerm, o
                                 <tr key={customer.id} className="border-b hover:bg-gray-50">
                                     <td className="px-6 py-4 text-sm text-foreground font-medium">{customer.name}</td>
                                     <td className="px-6 py-4 text-sm text-muted-foreground">{customer.email}</td>
-                                    <td className="px-6 py-4 text-sm text-muted-foreground">{customer.company}</td>
                                     <td className="px-6 py-4 text-sm">
                                         <span
                                             className={`px-3 py-1 rounded-full text-xs font-medium ${customer.status === 'Active'
@@ -69,18 +69,22 @@ export default function CustomersTable({ customers, searchTerm, setSearchTerm, o
                                         >
                                             <Eye size={18} className="text-blue-600" />
                                         </button>
-                                        <button
-                                            onClick={() => onEdit(customer)}
-                                            className="p-1 hover:bg-yellow-100 rounded-lg transition-colors"
-                                        >
-                                            <Edit2 size={18} className="text-yellow-600" />
-                                        </button>
-                                        <button
-                                            onClick={() => onDelete(customer)}
-                                            className="p-1 hover:bg-red-100 rounded-lg transition-colors"
-                                        >
-                                            <Trash2 size={18} className="text-red-600" />
-                                        </button>
+                                        {onEdit && (
+                                            <button
+                                                onClick={() => onEdit(customer)}
+                                                className="p-1 hover:bg-yellow-100 rounded-lg transition-colors"
+                                            >
+                                                <Edit2 size={18} className="text-yellow-600" />
+                                            </button>
+                                        )}
+                                        {onDelete && (
+                                            <button
+                                                onClick={() => onDelete(customer)}
+                                                className="p-1 hover:bg-red-100 rounded-lg transition-colors"
+                                            >
+                                                <Trash2 size={18} className="text-red-600" />
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
